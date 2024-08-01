@@ -6,6 +6,12 @@
 require 'concurrent'
 require 'json'
 
+def exec2(cmd)
+  r = exec(cmd)
+  sleep(0.8)
+  r
+end
+
 $YABAI_SIGNALS = {}
 $YABAI_SIGNALS["application_launched"] = {:params =>  "$YABAI_PROCESS_ID", :description => " Triggered when a new application is launched.  Eligible for app filter. Passes one argument: " }
 $YABAI_SIGNALS["application_terminated"] = {:params =>  "$YABAI_PROCESS_ID", :description => " Triggered when an application is terminated.  Eligible for app and active filter. Passes one argument: " }
@@ -59,7 +65,6 @@ class YABAI
   end
 
   def message(message)
-    puts message.inspect
     case message[0]
     when :YABAI_set_active_displays
       @active_displays = message.drop(1).map {|v| Integer(v)}
@@ -80,7 +85,7 @@ class YABAI
 
     when :action_goto_ttspace
 
-      puts ":action_goto_ttspace starting future"
+      puts ":action_goto_ttspace starting future, known space_nr #{@ttspaces.data.inspect}"
 
       Concurrent::Promises::future([message, @ttspaces]) {|message, ttspaces|
         begin
@@ -101,32 +106,45 @@ class YABAI
             # to avoid one focus ?
             c = ttspaces[ttspace]
             space_nr = c[:displays][display]
+            [ display,
             if space_nr.nil? then
               Concurrent::Promises::delay([display, space_nr, @expect_new_space_for]) { |display, space_nr, expect_new_space_for|
-                puts ":action_goto_ttspace caring about display #{display} space_nr not known"
-                f = Concurrent::Promises::resolvable_future
-                expect_new_space_for << {:display => display, :ttspace => ttspace, :resolvable => f}
-                `yabai -m space --focus #{display}`; puts $?
-                `yabai -m space --create`; puts $?
-                puts ":action_goto_ttspace caring about display #{display} space_nr not known - space commands done"
-                f.then { |n|
-                  puts "got number #{n} for display #{display}"
-                  c[:displays][display] = n
-                }
+                begin
+                  puts ":action_goto_ttspace caring about display #{display} space_nr not known"
+                  f = Concurrent::Promises::resolvable_future
+                  expect_new_space_for << {:display => display, :ttspace => ttspace, :resolvable => f}
+                  exec2("yabai -m display --focus #{display} # R1920300566")
+                  exec2("yabai -m space --create")
+                  puts ":action_goto_ttspace caring about display #{display} space_nr not known - space commands done"
+                  f.then { |n|
+                    puts "got number #{n} for display #{display}"
+                    # exec2("yabai -m display --focus #{display} # R1312710259")
+                    exec2("yabai -m space --focus #{n} # R1312710258")
+                    c[:displays][display] = n
+                    ttspaces.save
+                  }
+                rescue Exception => e
+                  handle_exception(e)
+                end
               }
             else
               Concurrent::Promises::delay([display, space_nr]) { |display, space_nr|
-                puts ":action_goto_ttspace caring about display #{display} space_nr known"
-                puts ":action_goto_ttspace caring about display #{display} space_nr known in future"
-                `yabai -m display --focus #{display}`
-                `yabai -m space --focus #{space_nr}`
-                space_nr
+                begin
+                  puts ":action_goto_ttspace caring about display #{display} space_nr known"
+                  puts ":action_goto_ttspace caring about display #{display} space_nr known in future"
+                  exec2("yabai -m display --focus #{display} # R169850120")
+                  exec2("yabai -m space --focus #{space_nr} # R1494551036")
+                  space_nr
+                rescue Exception => e
+                  handle_exception(e)
+                end
               }
             end
+            ]
           end
           futures.each do |v|
-            puts "joined, value"
-            puts v.flat.value
+            puts "joined, value #{v[0]}"
+            puts v[1].flat.value.inspect
           end
           # space_nrs = Concurrent::Promises::zip(*futures)
           # `yabai -m display --focus #{focus_display}` if focus_display
@@ -143,6 +161,7 @@ class YABAI
         # TODO: order could be wrong here? get the one matching the display 
         expect = @expect_new_space_for.pop
         if expect
+          puts "got space_nr #{message[3]}"
           expect[:resolvable].fulfill message[3]
           `yabai -m space #{message[3]} --label #{expect[:display]}.#{expect[:ttspace]}`
         end
@@ -155,9 +174,9 @@ class YABAI
   def add_yabai_signals
     yabairc_path = File.join(ENV["HOME"], '.yabairc')
     yabairc = File.read(yabairc_path)
-    add_lines = $YABAI_SIGNALS.keys.filter {|k| not yabairc.include? "yabai -m -signal --add event=#{k}" }.map {|k|
+    add_lines = $YABAI_SIGNALS.keys.filter {|k| not yabairc.include? "yabai -m signal --add event=#{k}" }.map {|k|
       # [label=<LABEL>] [app[!]=<REGEX>] [title[!]=<REGEX>] [active=yes|no]
-      "yabai -m -signal --add event=#{k} action='echo #{k} #{$YABAI_SIGNALS[k][:params]} >> /tmp/yabai-signals' "
+      "yabai -m signal --add event=#{k} action='echo #{k} #{$YABAI_SIGNALS[k][:params]} >> /tmp/yabai-signals' "
     }.join("\n")
     if add_lines != ""
       puts "adding lines\n#{add_lines} to #{yabairc_path}"
@@ -171,9 +190,12 @@ class YABAI
       forever do
         Open3.popen3("tail -F /tmp/yabai-log") do |stdin, stdout, stderr, wait_thrs|
           # stdin.puts($SUDO_PASSWORD)
+          last = nil
           begin
             while true do
               line = stdout.readline.strip
+              next if line == last
+              last = line
               # puts "got line #{line}"
               case line
               when /EVENT_HANDLER_DAEMON_MESSAGE: space --focus (.*)/
@@ -193,10 +215,14 @@ class YABAI
     @thread_yabai_signals = Thread.new do
       forever do
         Open3.popen3("tail -F /tmp/yabai-signals") do |stdin, stdout, stderr, wait_thrs|
+          last = nil
           begin
             while true do
-              line = stdout.readline.strip
-              $SMB.message([:yabai_signal, *line.split(' ')])
+              line = stdout.readline
+              next if line == last
+              last = line
+              cmd, args = line.strip.split(' ', 2)
+              $SMB.message([:yabai_signal, cmd, *args.split(', ')])
             end
           rescue Exception => e
             handle_exception(e)

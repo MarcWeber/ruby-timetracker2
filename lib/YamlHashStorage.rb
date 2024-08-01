@@ -6,7 +6,8 @@ require 'forwardable'
 class YamlHashStorage
 
   extend Forwardable
-  def_delegators :@data, :[], :keys, :values, :fetch, :invert
+  attr_reader :data
+  def_delegators :@data, :keys, :values, :fetch, :invert
 
   def initialize(path, default)
     @default = default
@@ -19,10 +20,11 @@ class YamlHashStorage
   end
 
   def load
-    @data = File.open(@path, 'rb') { |file| YAML.load(file) }
+    @data = File.open(@path, 'rb') { |file| YAML.load(file) } || {}
   end
   def save
-    File.open(@path, 'wb') { |file| YMAL.dump(@data, file) }
+    File.open(@path, 'wb') { |file| YAML.dump(@data, file) }
+    puts "saved"
   end
 
   def [](k)
@@ -37,8 +39,8 @@ class YamlHashStorage
 
 end
 
-# x = MarhsalledHashStorage.new("/tmp/foo.txt")
+# x = YamlHashStorage.new("/tmp/foo.txt", lambda {|| nil})
 # x[2] = 8
 # 
-# y = MarhsalledHashStorage.new("/tmp/foo.txt")
+# y = YamlHashStorage.new("/tmp/foo.txt", lambda {|| nil})
 # puts y[2]

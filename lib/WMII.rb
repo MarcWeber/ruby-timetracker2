@@ -42,7 +42,6 @@ class WMII
   end
 
   def message(message)
-    puts message.inspect
     case message[0]
     when :action_goto_ttspace
       $WMIIR.set_view(message[1])

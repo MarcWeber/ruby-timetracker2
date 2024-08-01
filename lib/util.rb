@@ -17,3 +17,9 @@ def with_tasks
   yield tasks
 end
 
+def exec(cmd)
+  puts cmd
+  s = `#{cmd}`
+  puts $?
+  s
+end
