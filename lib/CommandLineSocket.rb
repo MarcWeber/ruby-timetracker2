@@ -39,8 +39,7 @@ class CommandLineSocket
     when /^previous (.*)$/
       $SMB.message([:action_goto_previous_ttspace, Integer($1)])
     when /^ttspace_switcher$/
-      puts "space_switcher"
-      $SMB.message([:space_switcher])
+      $SMB.message([:ttspace_switcher])
     else
     with_tasks do |tasks|
         case line.strip
@@ -191,7 +190,7 @@ class CommandLineSocket
             $WMIIR.set_view(max)
           end
         else
-          puts "unknown command #{line}"
+          $SMB.message(line.strip.split(' '))
         end
       end
     end

@@ -11,7 +11,7 @@ GETTING STARTED
 ================
 gem install chronic sqlite3 
 # for Ubersicht integration
-gem install em-websocket
+gem install em-websocket concurrent-ruby concurrent-ruby-edge
 
 Read headlines in this Readme
 - SHELL SETUP
@@ -35,6 +35,9 @@ Refactoring is not complete, so there will be some dead code laying around still
     [ ] YABAI Understand how to use timetracking and multiple displays ?
         [ ] always switch all displays (simple)
         [ ] always switch current display *AND* track this keeping the other untouched
+
+        space_created event, does it follow order of creation? Could a
+        $DISPLAY_NR parameter be added eventually ?
 
 [ ] WMII document version which works
     is MODKEY-t builtin ? its commented in my config to switch views

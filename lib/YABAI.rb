@@ -3,6 +3,8 @@
 # TODO: How about multiple displays ?
 # create space for each ttspace and change them at the both time ?
 # How can you do time trackig if you choose two different ones ?
+require 'concurrent'
+require 'json'
 
 $YABAI_SIGNALS = {}
 $YABAI_SIGNALS["application_launched"] = {:params =>  "$YABAI_PROCESS_ID", :description => " Triggered when a new application is launched.  Eligible for app filter. Passes one argument: " }
@@ -36,15 +38,31 @@ $YABAI_SIGNALS["system_woke"] = {:description => "Triggered when macOS wakes fro
 class YABAI
 
   def initialize()
-    yabai_threads
-    @spaces = YamlHashStorage.new("/tmp/timetracker2-ttspace-name-ids")
+    @expect_new_space_for = []
+    # maps the ttspace name to display names
+    # [24, 20] means space 24 on display 0, 20 on display 20
+    @active_displays = [1, 2]
+    @ttspaces = YamlHashStorage.new("/tmp/timetracker2-ttspace-name-ids", lambda {|| {:focus => nil, :displays => []}})
     $SMB.add(self)
+
+    # FIXME find active display instead and assign
+    @active_display = yabai_json("-m query --displays").find {|v| v["has-focus"] }["id"]
+    puts "active_display #{@active_display}"
+    @expect_new_space_for_yield
     add_yabai_signals
+    yabai_threads
+  end
+
+  def yabai_json(*args)
+    s = `yabai #{args.join(' ')}`
+    JSON.parse(s)
   end
 
   def message(message)
     puts message.inspect
     case message[0]
+    when :YABAI_set_active_displays
+      @active_displays = message.drop(1).map {|v| Integer(v)}
     when :ttspace_switcher
       puts "starting ttspace switcher"
       Open3.popen3("#{$YABAI_CHOOSER_PATH} 'SELECT A TTSPACE' #{@ttspaces.keys.join(" ")}") do |stdin, stdout, stderr, wait_thrs|
@@ -61,27 +79,74 @@ class YABAI
       # $SMB.message([:space_entered, ttspace]) if ttspace
 
     when :action_goto_ttspace
-      ttspace = message[1]
-      space_nr = @ttspaces[ttspace]
-      if space_nr.nil?
-        puts "space_nr unknown"
-        @catch_new_space_and_name_it = ttspace
-        `yabai -m space --create`
-      else
-        `yabai -m space --focus #{space_nr}`
-      end
+
+      puts ":action_goto_ttspace starting future"
+
+      Concurrent::Promises::future([message, @ttspaces]) {|message, ttspaces|
+        begin
+          puts ":action_goto_ttspace in future"
+          ttspace = message[1]
+          puts "3"
+          focus_display = ttspaces[ttspace][:focus]
+          puts "4"
+
+          sorted_displays = [
+            # sort @active_displays by putting the to be focused display last
+            *@active_displays.filter {|v| v != focus_display },
+            *@active_displays.filter {|v| v == focus_display }
+          ]
+          puts "sorted_displays #{sorted_displays.inspect}"
+
+          futures = sorted_displays.map do |display|
+            # to avoid one focus ?
+            c = ttspaces[ttspace]
+            space_nr = c[:displays][display]
+            if space_nr.nil? then
+              Concurrent::Promises::delay([display, space_nr, @expect_new_space_for]) { |display, space_nr, expect_new_space_for|
+                puts ":action_goto_ttspace caring about display #{display} space_nr not known"
+                f = Concurrent::Promises::resolvable_future
+                expect_new_space_for << {:display => display, :ttspace => ttspace, :resolvable => f}
+                `yabai -m space --focus #{display}`; puts $?
+                `yabai -m space --create`; puts $?
+                puts ":action_goto_ttspace caring about display #{display} space_nr not known - space commands done"
+                f.then { |n|
+                  puts "got number #{n} for display #{display}"
+                  c[:displays][display] = n
+                }
+              }
+            else
+              Concurrent::Promises::delay([display, space_nr]) { |display, space_nr|
+                puts ":action_goto_ttspace caring about display #{display} space_nr known"
+                puts ":action_goto_ttspace caring about display #{display} space_nr known in future"
+                `yabai -m display --focus #{display}`
+                `yabai -m space --focus #{space_nr}`
+                space_nr
+              }
+            end
+          end
+          futures.each do |v|
+            puts "joined, value"
+            puts v.flat.value
+          end
+          # space_nrs = Concurrent::Promises::zip(*futures)
+          # `yabai -m display --focus #{focus_display}` if focus_display
+          # TODO if there are windows on non active displays ?
+        rescue Exception => e
+          handle_exception(e)
+        end
+      }
     when :yabai_signal
       case message[1]
+      when "display_changed"
+        @active_display = Integer(message[2])
       when "space_created"
-        if @catch_new_ttspace_and_name_it
-          ttspace = @catch_new_ttspace_and_name_it
-          @catch_new_ttspace_and_name_it = nil
-          @ttspaces[ttspace] = message[3]
-          $SMB.message([:action_goto_ttspace, ttspace])
-          `yabai -m space #{message[3]} --label #{ttspace}`
+        # TODO: order could be wrong here? get the one matching the display 
+        expect = @expect_new_space_for.pop
+        if expect
+          expect[:resolvable].fulfill message[3]
+          `yabai -m space #{message[3]} --label #{expect[:display]}.#{expect[:ttspace]}`
         end
       when "window_created"
-        puts message.inspect
         `yabai -m window --focus #{message[2]}`
       end
     end

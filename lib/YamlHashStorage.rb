@@ -8,7 +8,8 @@ class YamlHashStorage
   extend Forwardable
   def_delegators :@data, :[], :keys, :values, :fetch, :invert
 
-  def initialize(path)
+  def initialize(path, default)
+    @default = default
     @path = path
     if File.exist? @path
       load
@@ -25,6 +26,7 @@ class YamlHashStorage
   end
 
   def [](k)
+    @data[k] = @default.call unless @data[k]
     @data[k]
   end
 
