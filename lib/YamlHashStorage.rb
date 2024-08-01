@@ -6,7 +6,7 @@ require 'forwardable'
 class YamlHashStorage
 
   extend Forwardable
-  def_delegator :@data, :[], :keys, :values, :fetch, :invert
+  def_delegators :@data, :[], :keys, :values, :fetch, :invert
 
   def initialize(path)
     @path = path

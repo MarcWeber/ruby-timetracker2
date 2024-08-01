@@ -9,6 +9,10 @@ This project serves two use cases
 
 GETTING STARTED
 ================
+gem install chronic sqlite3 
+# for Ubersicht integration
+gem install em-websocket
+
 Read headlines in this Readme
 - SHELL SETUP
 - TASKS DEFINITION
