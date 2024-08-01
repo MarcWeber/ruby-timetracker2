@@ -59,9 +59,9 @@ class WMII
               # puts "got line #{line}"
               case line
               when /FocusTag (.*)/
-                $SMB.message([:ttspace_left, $WMII_CURRENT_SPACE]) if $WMII_CURRENT_SPACE
+                $SMB.message([:ttspace_left, $WMII_CURRENT_VIEW]) if $WMII_CURRENT_VIEW
                 $SMB.message([:ttspace_entered, $1])
-                $WMII_CURRENT_SPACE = $1
+                $WMII_CURRENT_VIEW = $1
               when /UnfocusTag (.*)/
                 # FocusTag should take care
               end

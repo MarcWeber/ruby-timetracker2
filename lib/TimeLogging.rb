@@ -16,10 +16,10 @@ class TimeLogging
 
       now = Time.new
       @last[:end] = now if @last
-      new_ = {:space => @current_ttspace, :start => now }
+      new_ = {:ttspace => @current_ttspace, :start => now }
       if @last
-        puts "%s %.2f" % [@last[:space], (@last[:end] - @last[:start]).to_f]
-        $SMB.message([:log_time_of_space, @last])
+        puts "%s %.2f" % [@last[:ttspace], (@last[:end] - @last[:start]).to_f]
+        $SMB.message([:log_time_of_ttspace, @last])
       end
       @last = new_
     end

@@ -47,7 +47,7 @@ class YABAI
     case message[0]
     when :ttspace_switcher
       puts "starting ttspace switcher"
-      Open3.popen3("#{$YABAI_CHOOSER_PATH} 'SELECT A SPACE' #{@ttspaces.keys.join(" ")}") do |stdin, stdout, stderr, wait_thrs|
+      Open3.popen3("#{$YABAI_CHOOSER_PATH} 'SELECT A TTSPACE' #{@ttspaces.keys.join(" ")}") do |stdin, stdout, stderr, wait_thrs|
         ttspace = stdout.readline.strip
         $SMB.message([:action_goto_ttspace, ttspace])
       end
