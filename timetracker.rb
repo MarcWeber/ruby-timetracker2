@@ -7,6 +7,7 @@ require 'open3'
 require 'socket'
 require 'set'
 require_relative 'lib/util.rb'
+require_relative 'lib/YamlHashStorage.rb'
 # require_relative 'lib/tasks.rb'
 # require_relative 'lib/templates.rb'
 puts "TODO templates.rb"

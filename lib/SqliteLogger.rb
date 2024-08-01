@@ -10,7 +10,7 @@ class SqliteLogger
     $SQLITE_LOGGER = self
 
     $SMB.add(self)
-    @last_space = nil
+    @last_ttspace = nil
 
     @db_path = File.join(ENV["HOME"], '.timetracker.sqlite')
     @db = SQLite3::Database.new(@db_path)
@@ -19,8 +19,8 @@ class SqliteLogger
 
     if tables.length == 0 then
 @db.execute <<-SQL
-  CREATE TABLE space_times (
-    space varchar(80),
+  CREATE TABLE ttspace_times (
+    ttspace varchar(80),
     start DATETIME,
     end DATETIME,
     seconds DOUBLE
@@ -38,19 +38,19 @@ SQL
 
   def message(message)
     case message[0]
-    when :log_time_of_space
+    when :log_time_of_ttspace
       x = message[1]
-      @db.execute("insert into space_times values ( ?, ?, ?, ? )", [x[:space], x[:start].to_s, x[:end].to_s, ((x[:end] - x[:start])).to_f])
+      @db.execute("insert into ttspace_times values ( ?, ?, ?, ? )", [x[:ttspace], x[:start].to_s, x[:end].to_s, ((x[:end] - x[:start])).to_f])
     end
   end
 
   def print_last_reset(reset)
 
     db.execute("
-    SELECT space, SUM(seconds)
-    FROM space_times
+    SELECT ttspace, SUM(seconds)
+    FROM ttspace_times
     WHERE start > (SELECT max(reset) FROM resets)
-    GROUP BY space
+    GROUP BY ttspace
     ") do |row|
       puts "%s %.2f" % row
     end

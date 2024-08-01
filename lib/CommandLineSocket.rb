@@ -32,10 +32,15 @@ class CommandLineSocket
 
   def handle_command(line, puts)
     case line.strip
+    when /^goto_ttspace (.*)$/
+      $SMB.message([:action_goto_ttspace, $1])
     when /^previous$/
-      $SMB.message([:action_goto_previous_space, 1])
+      $SMB.message([:action_goto_previous_ttspace, 1])
     when /^previous (.*)$/
-      $SMB.message([:action_goto_previous_space, Integer($1)])
+      $SMB.message([:action_goto_previous_ttspace, Integer($1)])
+    when /^ttspace_switcher$/
+      puts "space_switcher"
+      $SMB.message([:space_switcher])
     else
     with_tasks do |tasks|
         case line.strip

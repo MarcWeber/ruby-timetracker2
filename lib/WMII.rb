@@ -44,8 +44,7 @@ class WMII
   def message(message)
     puts message.inspect
     case message[0]
-    when :action_goto_space
-      puts "going to space #{message[1]}"
+    when :action_goto_ttspace
       $WMIIR.set_view(message[1])
     end
   end
@@ -60,8 +59,8 @@ class WMII
               # puts "got line #{line}"
               case line
               when /FocusTag (.*)/
-                $SMB.message([:space_left, $WMII_CURRENT_SPACE]) if $WMII_CURRENT_SPACE
-                $SMB.message([:space_entered, $1])
+                $SMB.message([:ttspace_left, $WMII_CURRENT_SPACE]) if $WMII_CURRENT_SPACE
+                $SMB.message([:ttspace_entered, $1])
                 $WMII_CURRENT_SPACE = $1
               when /UnfocusTag (.*)/
                 # FocusTag should take care

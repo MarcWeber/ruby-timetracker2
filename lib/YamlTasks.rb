@@ -16,35 +16,35 @@ class YamlTasks
     with_tasks do |tasks|
       case message[0]
       when :task_block_for
-        space = message[1]
+        ttspace = message[1]
         seconds = message[2]
         puts.call "blocking for #{seconds / 60.0 / 60} hours"
-        tasks.block_for(space, seconds)
+        tasks.block_for(ttspace, seconds)
 
       when :task_block_by
-        tasks.block_by($TIME_LOGGING.current_space, $1)
-        space = message[1]
+        tasks.block_by($TIME_LOGGING.current_ttspace, $1)
+        ttspace = message[1]
         by = message[2]
-        tasks.block_by(space, by)
+        tasks.block_by(ttspace, by)
         $SMB.message([:next_task])
 
       when :next_task
         # goto next view
-        n = tasks.next($TIME_LOGGING.current_space)
-        $SMB.message([:action_goto_space, n]) if n
+        n = tasks.next($TIME_LOGGING.current_ttspace)
+        $SMB.message([:action_goto_ttspace, n]) if n
 
       when :current_task_done
-          r = tasks.subtask_done($TIME_LOGGING.current_space, nil)
+          r = tasks.subtask_done($TIME_LOGGING.current_ttspace, nil)
           puts.call r[:message]
           tasks.save
-          space = r[:next]
-          $SMB.message([:action_goto_space, space]) if space
+          ttspace = r[:next]
+          $SMB.message([:action_goto_ttspace, ttspace]) if ttspace
 
       when :new_task
         insert_append = message[1]
-        space = message[2]
+        ttspace = message[2]
         rest = message[3]
-        h = tasks.hash_by_name(view, space)
+        h = tasks.hash_by_name(view, ttspace)
         # (?: blocked-by (.*))?
         rest.strip.split(/(?=block-by|block)/).each do |s|
           case s

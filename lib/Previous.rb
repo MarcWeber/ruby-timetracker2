@@ -1,23 +1,23 @@
 # encoding: UTF-8
 
-# allows going to previos space
+# allows going to previos ttspace
 class Previous
 
   def initialize()
     $SMB.add(self)
-    @previous_spaces = []
+    @previous_ttspaces = []
   end
 
   def message(message)
     case message[0]
-    when :space_entered
-      space = message[1]
-      puts "entered #{space}"
-      @previous_spaces = [space].concat(@previous_spaces.filter{|v| v != space}.take(5))
-    when :action_goto_previous_space
-      prev = @previous_spaces[message.fetch(1, 1)]
-      puts "goto space #{prev}"
-      $SMB.message([:action_goto_space, prev]) if prev
+    when :ttspace_entered
+      ttspace = message[1]
+      puts "entered #{ttspace}"
+      @previous_ttspaces = [ttspace].concat(@previous_ttspaces.filter{|v| v != ttspace}.take(5))
+    when :action_goto_previous_ttspace
+      prev = @previous_ttspaces[message.fetch(1, 1)]
+      puts "goto ttspace #{prev}"
+      $SMB.message([:action_goto_ttspace, prev]) if prev
     end
   end
 

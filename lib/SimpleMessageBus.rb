@@ -2,10 +2,10 @@
 
 # maybe use something more compilcated later
 
-# [:goto_space, name]
-# [:space_entered, name]
-# [:action_goto_previous_space [, 1] ]
-# [:action_goto_space, [, 1] ]
+# [:goto_ttspace, name]
+# [:ttspace_entered, name]
+# [:action_goto_previous_ttspace [, 1] ]
+# [:action_goto_ttspace, [, 1] ]
 class SimpleMessageBus
 
   def initialize()
